@@ -17,13 +17,17 @@ async function getData() {
       Number(card.card_id ?? card.id)
     );
 
+    console.log(`Encontrados ${cards.length} cards nas colunas indicadas`);
+
     const loggedTimes = await kanbanizeApi.getLoggedTime(card_ids);
     const timesData = loggedTimes.data;
     const loggedCardIds = timesData.map((lt: any) => lt.card_id);
 
     const cardIdsToRemove = new Set(
       timesData
-        .filter((lt: any) => lt.comment?.toLowerCase().includes('intkbnz248'))
+        .filter((lt: any) =>
+          lt.comment?.toLowerCase().includes(process.env.COMMENT_KEY)
+        )
         .map((lt: any) => lt.card_id)
     );
 
@@ -49,6 +53,11 @@ async function getData() {
         hours: totalTime || 0,
       };
     });
+
+    console.log(
+      `Sobraram ${cardHoursMap.length} cards para processar após aplicar os filtros`
+    );
+
     for (const card of cardHoursMap) {
       const details = await kanbanizeApi.getCardDatails(card.card_id);
       const description = details.data.description;
@@ -72,18 +81,18 @@ async function getData() {
       ).padStart(2, '0')}-${String(dataAtual.getDate()).padStart(2, '0')}`;
 
       if (saldoHoras > 0) {
-        const retornoInsert = await kanbanizeApi.insereLoggedTime({
+        await kanbanizeApi.insereLoggedTime({
           cardId: card.card_id,
           date: hoje,
           time: saldoHoras,
-          comment: motivo + ' IntKbnz248',
+          comment: `${motivo} ${process.env.COMMENT_KEY}`,
         });
       }
     }
 
     transaction.result = 'success';
 
-    console.log('Rodando o scheduler no Heroku 🚀');
+    console.log('Processo finalizado com sucesso');
   } catch (error: any) {
     console.error('Erro:', error.message);
 
