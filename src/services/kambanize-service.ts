@@ -2,7 +2,6 @@ import axiosInstance, { AxiosInstance } from 'axios';
 
 class KambanizeService {
   private axios: AxiosInstance;
-  private boardId: string;
   private columnIds: string;
 
   constructor() {
@@ -12,19 +11,17 @@ class KambanizeService {
         apikey: process.env.KAMBANIZE_API_KEY ?? '',
       },
     });
-    this.boardId = process.env.KAMBANIZE_BOARD_ID ?? '';
     this.columnIds = process.env.KAMBANIZE_COLUMN_IDS ?? '';
   }
 
   public async getAllCards(): Promise<any> {
     const { data } = await this.axios.get('/api/v2/cards', {
       params: {
-        board_id: this.boardId,
         column_ids: this.columnIds,
       },
     });
 
-    return data;
+    return data.data.data;
   }
 
   public async getLoggedTime(cardIds: number[]): Promise<any> {
@@ -36,15 +33,11 @@ class KambanizeService {
       },
     });
 
-    return data;
+    return data.data;
   }
 
   public async getCardDatails(cardId: number): Promise<any> {
-    const { data } = await this.axios.get('/api/v2/cards/' + cardId, {
-      params: {
-        board_id: this.boardId,
-      },
-    });
+    const { data } = await this.axios.get('/api/v2/cards/' + cardId);
 
     return data;
   }
@@ -58,7 +51,7 @@ class KambanizeService {
   }): Promise<any> {
     const payload = {
       card_id: params.cardId,
-      board_id: params.board_id ?? Number(this.boardId),
+      board_id: params.board_id,
       date: params.date,
       time: params.time,
       comment: params.comment ?? '',

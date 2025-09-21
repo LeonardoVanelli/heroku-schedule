@@ -12,44 +12,48 @@ async function getData() {
 
   try {
     const allCards = await kanbanizeApi.getAllCards();
-    const cards = allCards.data.data;
-    const card_ids: number[] = cards.map((card: any) =>
-      Number(card.card_id ?? card.id)
+    const cardsMap = allCards.map((card: any) => ({
+      card_id: Number(card.card_id),
+      board_id: Number(card.board_id),
+    }));
+    const cardIds: number[] = cardsMap.map(
+      (c: { card_id: number }) => c.card_id
     );
+    console.log(`Encontrados ${allCards.length} cards nas colunas indicadas`);
 
-    console.log(`Encontrados ${cards.length} cards nas colunas indicadas`);
-
-    const loggedTimes = await kanbanizeApi.getLoggedTime(card_ids);
-    const timesData = loggedTimes.data;
-    const loggedCardIds = timesData.map((lt: any) => lt.card_id);
+    const loggedTimes = await kanbanizeApi.getLoggedTime(cardIds);
+    const loggedCardIds = loggedTimes.map((lt: any) => lt.card_id);
 
     const cardIdsToRemove = new Set(
-      timesData
+      loggedTimes
         .filter((lt: any) =>
           lt.comment?.toLowerCase().includes(process.env.COMMENT_KEY)
         )
         .map((lt: any) => lt.card_id)
     );
 
-    const filteredCardIds = timesData
+    const filteredCardIds = loggedTimes
       .filter((lt: any) => !cardIdsToRemove.has(lt.card_id))
       .map((lt: any) => lt.card_id);
 
-    const notLoggedCardIds = card_ids.filter(
-      (id: number) => !loggedCardIds.includes(id)
+    const notLoggedCardIds = cardsMap.filter(
+      (c: { card_id: number }) => !loggedCardIds.includes(c.card_id)
     );
 
-    const finalCardIds = [
-      ...new Set([...filteredCardIds, ...notLoggedCardIds]),
+    const finalCards = [
+      ...new Map(
+        [...filteredCardIds, ...notLoggedCardIds].map((c) => [c.card_id, c])
+      ).values(),
     ];
 
-    const cardHoursMap = finalCardIds.map((id) => {
-      const totalTime = timesData
-        .filter((lt: any) => lt.card_id === id)
+    const cardHoursMap = finalCards.map((card) => {
+      const totalTime = loggedTimes
+        .filter((lt: any) => lt.card_id === card.card_id)
         .reduce((sum: number, lt: any) => sum + (lt.time || 0), 0);
 
       return {
-        card_id: id,
+        card_id: card.card_id,
+        board_id: card.board_id,
         hours: totalTime || 0,
       };
     });
@@ -83,6 +87,7 @@ async function getData() {
       if (saldoHoras > 0) {
         await kanbanizeApi.insereLoggedTime({
           cardId: card.card_id,
+          board_id: card.board_id,
           date: hoje,
           time: saldoHoras,
           comment: `${motivo} ${process.env.COMMENT_KEY}`,
