@@ -20,8 +20,11 @@ class KambanizeService {
         column_ids: this.columnIds,
       },
     });
-
-    return data.data.data;
+    const cards = data.data.data.map((card: any) => ({
+      card_id: Number(card.card_id),
+      board_id: Number(card.board_id),
+    }));
+    return cards;
   }
 
   public async getLoggedTime(cardIds: number[]): Promise<any> {
