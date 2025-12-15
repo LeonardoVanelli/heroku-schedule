@@ -13,13 +13,16 @@ class OpenaiService {
     });
   }
 
-  public async getHorasMotivoProcessados(descricao: string): Promise<string> {
+  public async getHorasMotivoProcessados(
+    descricao: string,
+    systemContent: string
+  ): Promise<string> {
     const { data } = await this.axios.post('/v1/chat/completions', {
       model: process.env.OPENAI_MODEL,
       messages: [
         {
           role: 'system',
-          content: process.env.OPENAI_SYSTEM_CONTENT,
+          content: systemContent,
         },
         {
           role: 'user',

@@ -63,6 +63,16 @@ class KambanizeService {
     const { data } = await this.axios.post('/api/v2/loggedTime', payload);
     return data;
   }
+
+  public async getCardsType(): Promise<Map<number, string>> {
+    const { data } = await this.axios.get('/api/v2/cardTypes');
+
+    const cardTypes = new Map<number, string>(
+      data.data.map((type: any) => [Number(type.type_id), type.name])
+    );
+
+    return cardTypes;
+  }
 }
 
 export { KambanizeService };

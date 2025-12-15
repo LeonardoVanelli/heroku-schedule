@@ -7,10 +7,14 @@ import { OpenaiService } from './services/openai-service';
 async function getData() {
   const kanbanizeApi = new KambanizeService();
   const openaiService = new OpenaiService();
-
   const transaction = apm.startTransaction('GET post from API', 'custom');
+  const systemContentTemplate = process.env.OPENAI_SYSTEM_CONTENT ?? '';
+  if (!systemContentTemplate) {
+    throw new Error('A variavél OPENAI_SYSTEM_CONTENT é obrigatório');
+  }
 
   try {
+    const cardsType = await kanbanizeApi.getCardsType();
     let cardsMap = await kanbanizeApi.getAllCards();
     const cardIds: number[] = cardsMap.map(
       (c: { card_id: number }) => c.card_id
@@ -51,9 +55,19 @@ async function getData() {
       try {
         const details = await kanbanizeApi.getCardDatails(card.card_id);
         const description = details.data.description;
+        const cardSize = String(details.data.size ?? '1');
+        const typeId = Number(details.data.type_id);
+        const typeName = cardsType.get(typeId) ?? 'Story';
+        const systemContent = systemContentTemplate
+          .replace('{{CARD_TYPE}}', typeName)
+          .replace('{{CARD_SIZE}}', cardSize);
+
         const horasProc = await openaiService.getHorasMotivoProcessados(
-          description
+          description,
+          systemContent
         );
+        console.log('Passou pela openai o card: ' + card.card_id);
+        console.log('Mensagem enviada para Openai: ' + systemContent);
         const match = horasProc?.match(/Horas:\s*(\d+)\s+Motivo:\s*(.*)/s);
 
         let horas = 0;
@@ -77,6 +91,7 @@ async function getData() {
             time: saldoHoras,
             comment: `${motivo} ${process.env.COMMENT_KEY}`,
           });
+          console.log('Passou pelo insert log o card: ' + card.card_id);
         }
       } catch (err: any) {
         console.log(
